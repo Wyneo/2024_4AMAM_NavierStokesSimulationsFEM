@@ -1,0 +1,111 @@
+// Parameters  
+int nn = 50;
+real re=1, nu=1.0/re;
+real t = 0; //initial time
+real T = 1.; //final time
+real nbite = 100.;
+real dt = T/(nbite);
+int i = 0; //iteration
+
+// Mesh 
+real x0 = -1./2., x1 = 3./2., y0 = -1./2., y1 = 3./2.; 
+mesh Th = square(nn, nn, [x0+(x1-x0)*x, y0+(y1-y0)*y]);
+//mesh Th = square(nn,nn);
+//plot(Th, wait = 1);
+// Fespace 
+fespace Uh(Th, P1b);
+Uh u1, u2; 
+Uh v1, v2;
+Uh u1old = -pi*cos(pi*x)*sin(pi*y), u2old = pi*sin(pi*x)*cos(pi*y); 
+Uh u1oldtemp=convect([u1old,u2old],-dt,u1old), u2oldtemp=convect([u1old,u2old],-dt,u2old);
+fespace Ph(Th, P1); 
+Ph p, q; 
+Ph psi, phi;
+
+func solu1 = -pi*cos(pi*x)*sin(pi*y)*exp((-2*pi*pi*t)/re);
+func solu2 = pi*sin(pi*x)*cos(pi*y)*exp((-2*pi*pi*t)/re);
+func solp = (-1/4)*pi*(cos(2*pi*x)+cos(2*pi*y))*exp((-4*pi*pi*t)/re);
+func f1 = 0;
+func f2 = 0;
+
+real[int] erru1vals(nbite), erru2vals(nbite), errpvals(nbite), energyvals(nbite);
+
+macro Grad(u) [dx(u),dy(u)] //
+macro div(u1,u2) (dx(u1)+dy(u2)) //
+
+problem NavierStokes ([u1,u2,p], [v1,v2,q], solver = Crout) =
+    int2d(Th)
+    (
+      1.0/dt*(u1*v1+u2*v2)
+      + nu*(Grad(u1)'*Grad(v1)+Grad(u2)'*Grad(v2))
+      - 1e-10*p*q
+      - p*div(v1, v2)
+      - q*div(u1, u2)
+    ) 
+    - int2d(Th)(1.0/dt*(u1oldtemp*v1+u2oldtemp*v2))
+    - int2d(Th)(f1*v1 + f2*v2)
+    // + on(1, u1 = 0, u2 = -pi*sin(pi*x)*exp((-2*pi*pi*t)/re))
+    // + on(2, u1 = pi*sin(pi*y)*exp((-2*pi*pi*t)/re), u2 = 0)
+    // + on(3, u1 = 0, u2 = -pi*sin(pi*x)*exp((-2*pi*pi*t)/re))
+    // + on(4, u1 = pi*sin(pi*y)*exp((-2*pi*pi*t)/re), u2 = 0)
+    + on(1, 3, u1 = pi*cos(pi*x)*exp((-2*pi*pi*t)/re), u2 = 0)
+    + on(2, 4, u1 = 0, u2 = -pi*cos(pi*y)*exp((-2*pi*pi*t)/re))
+;
+
+problem streamlines (psi, phi) = 
+    int2d(Th)(
+      dx(psi)*dx(phi) 
+      + dy(psi)*dy(phi) 
+    )
+    + int2d(Th)(
+      - phi*(dy(u1) - dx(u2))
+    ) 
+    + on(1, 2, 3, 4, psi=0)
+    //+ on(1, 3, psi = -cos(pi*x))
+    //+ on(2, 4, psi = -cos(pi*y))
+;
+
+while(t<T){
+  cout << i << endl;
+  func solu1 = -pi*cos(pi*x)*sin(pi*y)*exp((-2*pi*pi*t)/re);
+  func solu2 = pi*sin(pi*x)*cos(pi*y)*exp((-2*pi*pi*t)/re);
+  func solp = (-1/4)*pi*(cos(2*pi*x)+cos(2*pi*y))*exp((-4*pi*pi*t)/re);
+
+  u1oldtemp=convect([u1old,u2old],-dt,u1old);
+  u2oldtemp=convect([u1old,u2old],-dt,u2old);
+
+  NavierStokes;
+  streamlines;
+
+  real energy = int2d(Th)(u1*u1+u2*u2);
+  energyvals[i] = energy;
+  
+  //plot([u1, u2], value=1); 
+  plot(psi, value = 1, fill = 0, cmm="iteration "+i+", time "+t);
+  
+  real erru1 = sqrt(int2d(Th)((solu1 - u1)*(solu1 - u1)));
+	real erru2 = sqrt(int2d(Th)((solu2 - u2)*(solu2 - u2)));
+	real errp = sqrt(int2d(Th)((solp - p)*(solp - p)));
+  //cout<<"valeurs de erreur de u1 : "<<erru1<<endl;
+  //cout<<"valeurs de erreur de u2 : "<<erru2<<endl;
+  //cout<<"valeurs de erreur de p : "<<errp<<endl;
+
+	erru1vals[i] = erru1;
+	erru2vals[i] = erru2;
+	errpvals[i] = errp;
+
+  u1old = u1;
+  u2old = u2;
+
+  t += dt;
+  i += 1;
+}
+
+cout<<"valeurs de erreur de u1 : "<<erru1vals<<endl;
+cout<<"valeurs de erreur de u2 : "<<erru2vals<<endl;
+cout<<"valeurs de erreur de p : " <<errpvals<<endl;
+
+// cout<< "valeurs de erreur de u1 a t=T :" <<erru1vals[99]<<endl;
+
+cout<<"values of the energy: " <<energyvals<<endl;
+
