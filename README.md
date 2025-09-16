@@ -11,5 +11,6 @@ L'approche adoptée impliquait d'utiliser la méthode des caractéristiques et l
 Une série de simulations a été réalisée, la plus élémentaire étant le cas test de la cavité entraînée avec l'équation de Stokes. Le problème du tourbillon de Taylor a été simulé pour valider le programme avec les équations de Navier-Stokes, et une simulation impliquant uniquement l'équation d’advection a été réalisée pour valider le programme mettant en œuvre la méthode de Galerkin discontinue. Ensuite, des simulations d'un écoulement autour d'un obstacle ont été effectuées, avec seulement les équations de Navier-Stokes, puis en combinant les équations de Navier-Stokes et l'équation d’advection. 
 
 Les résultats ainsi que plus de détails sont disponibles dans le rapport de stage.
+Visualisation de certains résultats avec le package medit, via la commande ffmedit.
 
 Remerciements à Mm. TA Thi Thanh Mai pour ce sujet et son aide.
