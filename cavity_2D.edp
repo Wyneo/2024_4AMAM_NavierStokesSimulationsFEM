@@ -1,0 +1,76 @@
+load "medit"
+// Parameters  
+int nn = 32;
+real dt=0.2,re=400., nu=1.0/re;
+//func f1 = 0;
+//func f2 = 0;
+ // Mesh 
+mesh Th = square(nn, nn); 
+//plot(Th, wait=1);
+// Fespace 
+fespace Uh(Th, P2);
+Uh u1, u2; 
+Uh v1, v2;
+Uh u1old = 0, u2old = 0; 
+fespace Ph(Th, P1); 
+Ph p, q; 
+Ph psi,phi;
+Ph vorticity;
+
+macro Grad(u) [dx(u),dy(u),dz(u)] //
+macro div(u1,u2) (dx(u1)+dy(u2)) //
+
+problem NavierStokes ([u1,u2,p], [v1,v2,q], solver = Crout) =
+  int2d(Th)(
+    1.0/dt*(u1*v1+u2*v2)
+    + nu*(Grad(u1)'*Grad(v1)+Grad(u2)'*Grad(v2))
+    - 1e-10*p*q
+    - p*div(v1, v2)
+    - q*div(u1, u2)
+  )
+  - int2d(Th)(1.0/dt*(convect([u1old,u2old],-dt,u1old)*v1
+                     +convect([u1old,u2old],-dt,u2old)*v2))
+  + on(1, 2, 4, u1=0, u2=0)
+  + on(3, u1=1, u2=0)
+;
+
+problem streamlines (psi, phi) = 
+  int2d(Th)(
+    dx(psi)*dx(phi) 
+    + dy(psi)*dy(phi) 
+  )
+  + int2d(Th)(
+    - phi*(dy(u1) - dx(u2))
+  )
+  + on(1, 2, 4, 3, psi=0)
+  //+ on(3, psi=y)
+;
+
+for(int i=0; i<300; i++){
+  cout << i << endl;
+
+  //Uh u1oldtemp=convect([u1old,u2old],-dt,u1old);
+  //Uh u2oldtemp=convect([u1old,u2old],-dt,u2old);
+
+  NavierStokes;
+  streamlines;
+
+  vorticity = dx(u2) - dy(u1);
+
+  u1old = u1;
+  u2old = u2;
+
+  //plot(vorticity, value=1);
+  //plot([u1, u2], value=0); 
+  //plot(u1, u2);
+  //plot(psi, value=1);
+
+  //savesol("Th." + i + ".sol", Th, psi);
+  //savesol("Th." + i + ".sol", Th, [u1, u2]);
+  //savesol("Th." + i + ".sol", Th, vorticity);
+  //savesol("Th." + i + ".sol", Th, p);
+  //savemesh(Th, "Th." + i + ".mesh");
+}
+plot([u1, u2], wait=1); 
+plot(psi, wait=1);
+plot(vorticity, wait=1);
