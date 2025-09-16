@@ -1,0 +1,50 @@
+int n = 100, M = 10.*n;
+real x0 = 0.0, y0 = 0.5;
+real dt = 2*pi/M;
+
+mesh Th = square(n,n, [x*2.-1.,y*2.-1.]);
+plot(Th, wait = 1);
+
+fespace Vh(Th, P1);
+Vh uconv = exp(-50*((x-x0)^2+(y-y0)^2)), vconv, uconvold;
+Vh ufix = uconv;
+Vh u1 = y, u2 = -x;
+fespace Vhdg(Th, P1dc);
+Vhdg udg = exp(-50*((x-x0)^2+(y-y0)^2)), vdg, udgold;
+Vhdg ufixdg = udg;
+Vhdg u1dg = y, u2dg = -x;
+
+macro n() (N.x*u1dg + N.y*u2dg) //
+
+problem Aconv(uconv,vconv)=
+	int2d(Th)(uconv*vconv) 
+	- int2d(Th)(convect([u1,u2],-dt,uconvold)*vconv)
+	+ on(1,2,3,4, uconv = 0);
+
+problem Adg(udg,vdg)=
+	int2d(Th)(
+		(udg/dt+(u1dg*dx(udg)+u2dg*dy(udg)))*vdg 
+	)
+	+ intalledges(Th)(
+		(1-nTonEdge)*(abs(n)/2.)*jump(udg)*vdg
+	 	-(1-nTonEdge)*n/2.*jump(udg)*vdg
+	)
+	- int2d(Th)(
+		udgold*vdg/dt 
+	)
+;
+
+//plot(ufix,uconv,udg, nbiso = 3);
+
+for (int m = 0; m < M; m++){
+	uconvold = uconv;
+	udgold = udg;
+	Aconv;
+	Adg;
+	plot(ufix,uconv,udg, nbiso=3);
+}
+
+real erruconv = int2d(Th)(abs(ufix - uconv));
+cout << "erreur de u avec method convect : " << erruconv << endl;
+real errudg =int2d(Th)(abs(ufixdg - udg));
+cout << "erreur de u avec method dg : " << errudg << endl;
