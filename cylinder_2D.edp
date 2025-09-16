@@ -1,0 +1,74 @@
+load "medit"
+// Mesh 
+real H = 0.41 , W = 2.2;
+border c1(t=0,W){x=t; y=0;}
+border c2(t=0,H){x=W; y=t;}
+border c3(t=W,0){y=H; x=t;}
+border c4(t=H,0){x=0; y=t;}
+border C(t=0,2*pi){x=0.2+0.05*cos(t); y=0.2+0.05*sin(t);};
+int n = 20;
+int nx = 5*n;
+int ny = n; 
+mesh Th = buildmesh(c1(nx) + c2(ny) + c3(nx) + c4(ny) + C(-1*n));
+//plot(c1(5*n) + c2(1*n) + c3(5*n) + c4(1*n) + C(-1*n), wait = true);
+plot(Th,boundary=true, wait = true);
+
+// Fespace
+fespace Uh(Th, P2);
+Uh u1, u2;
+Uh v1, v2;
+Uh u1old, u2old;
+Uh psi,phi;
+fespace Ph(Th, P1);
+Ph p, q;
+
+// Parameters  
+real dt=0.01, re = 200.0, nu=1.0/re;
+real T = 10;
+real um = 3;
+
+macro Grad(u) [dx(u),dy(u),dz(u)] //
+macro div(u1,u2) (dx(u1)+dy(u2)) //
+
+problem NavierStokes ([u1,u2,p], [v1,v2,q]) =
+    int2d(Th)
+    (
+      1.0/dt*(u1*v1+u2*v2)
+      + nu*(Grad(u1)'*Grad(v1)+Grad(u2)'*Grad(v2))
+      - p*div(v1, v2)
+    )
+    - int2d(Th)(1.0/dt*(convect([u1old,u2old],-dt,u1old)*v1+convect([u1old,u2old],-dt,u2old)*v2))
+    + int2d(Th)(q*div(u1, u2))
+    - int2d(Th)(p*q*1e-10)
+    //+ int1d(Th, 2)( g*v1 + g*v2 ) //Neumann condition for velocity
+    //+ int1d(Th, 2)( g*q ) //Neumann condition for pressure
+    + on(c4, u1 = 4.*um*y*(0.41-y)/(0.41*0.41), u2 = 0)
+    + on(c1,c3,C, u1 = 0, u2 = 0)
+;
+
+problem streamlines (psi, phi) = 
+    int2d(Th)(
+      dx(psi)*dx(phi) 
+      + dy(psi)*dy(phi) 
+    )
+    + int2d(Th)(
+      - phi*(dy(u1) - dx(u2))
+    ) 
+    + on(c1, c2, c3, c4, C, psi=0)
+;
+
+for(int i=0; i*dt<=T; i++){
+  cout << i << endl;
+
+  u1old = u1;
+  u2old = u2;
+
+  NavierStokes;
+  streamlines;
+
+  savesol("Th." + i + ".sol", Th, [u1,u2]);
+  savemesh(Th, "Th." + i + ".mesh");
+  
+  //plot(psi, value=0); 
+}
+//plot(psi, wait = 1); 

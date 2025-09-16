@@ -1,0 +1,153 @@
+load "medit"
+// Mesh 
+//real D=1, H=13*D, W = 14*D;
+//real D=1, H = 10*D, W = 24*D;
+real D=1.0, H = 10*D, W = 20*D;
+border fr1(t=0,W){x=t; y=0; label=1;}
+border fr2(t=0,H){x=W; y=t; label=2;}
+border fr3(t=W,0){x=t; y=H; label=3;}
+border fr4(t=H,0){x=0; y=t; label=4;}
+// border in1(t =6*D,7*D){x = 3*D; y = t  ; label = 5;}
+// border in2(t =3*D,4*D){x = t  ; y = 7*D; label = 5;}
+// border in3(t =7*D,6*D){x = 4*D; y = t  ; label = 5;}
+// border in4(t =4*D,3*D){x = t  ; y = 6*D; label = 5;}
+// border in1(t =4.5*D,5.5*D){x = 5.5*D; y = t  ; label = 5;}
+// border in2(t =5.5*D,6.5*D){x = t  ; y = 5.5*D; label = 5;}
+// border in3(t =5.5*D,4.5*D){x = 6.5*D; y = t  ; label = 5;}
+// border in4(t =6.5*D,5.5*D){x = t  ; y = 4.5*D; label = 5;}
+border in1(t =4.5*D,5.5*D){x = 3*D; y = t  ; label = 5;}
+border in2(t =3*D,4*D){x = t  ; y = 5.5*D; label = 5;}
+border in3(t =5.5*D,4.5*D){x = 4*D; y = t  ; label = 5;}
+border in4(t =4*D,3*D){x = t  ; y = 4.5*D; label = 5;}
+int nn=30;
+//int nn=15;
+//int nx=45;
+//int ny=25;
+int nx = 55; //220 in the paper but to long for my computer
+int ny = 30; //175
+//int nx = 80; 
+//int ny = 20; 
+mesh Th = buildmesh(fr1(nx)+fr2(ny)+fr3(nx)+fr4(ny)+in1(nn)+in2(nn)+in3(nn)+in4(nn));
+//plot(Th, wait = true);
+
+// Fespace
+fespace Uh(Th, P2);
+Uh u1, u2;
+Uh v1, v2;
+Uh u1old, u2old;
+Uh q1,q2;
+fespace Ph(Th, P1);
+Ph psi,phi;
+Ph p, q;
+fespace Vh(Th, P1dc);
+Vh cc = 0, w, ccold;
+Vh beta1 = y, beta2 = -x;
+// fespace Vh(Th, P1);
+// Vh cc = 0, w, ccold;
+// Vh beta1 = y, beta2 = -x;
+
+// Parameters  
+real re = 10000.0;
+real u0 = 10.0;
+real nu = D*u0/re;
+real t = 0;
+real dt = 0.02, T = 10.;
+// real dt = 0.0125, T = 2.;
+
+macro Grad(u) [dx(u),dy(u),dz(u)] //
+macro div(u1,u2) (dx(u1)+dy(u2)) //
+macro n() (N.x*beta1+N.y*beta2) //
+
+func real f(real a)
+{
+	if(a<0.01) return 1.;
+	else return 0;
+}
+func real f2(real a)
+{
+	if(a>0.01) return cc;
+	else return 1.;
+}
+
+problem NavierStokes ([u1,u2,p], [v1,v2,q], solver = Crout) =
+    int2d(Th)(
+      1.0/dt*(u1*v1+u2*v2)
+      + nu*(Grad(u1)'*Grad(v1)+Grad(u2)'*Grad(v2))
+      - p*div(v1, v2)
+    )
+    - int2d(Th)(
+      1.0/dt*(convect([u1old,u2old],-dt,u1old)*v1
+            + convect([u1old,u2old],-dt,u2old)*v2)
+    )
+    - int2d(Th)(q*div(u1, u2))
+    - int2d(Th)(p*q*1e-10)
+		+ on(4, u1 = u0, u2 = 0)
+		+ on(1,3,5,u1 = 0, u2 = 0)
+;
+
+problem streamlines (psi, phi) = 
+    int2d(Th)(
+      dx(psi)*dx(phi) 
+      + dy(psi)*dy(phi) 
+    )
+    + int2d(Th)(
+      - phi*(dy(u1) - dx(u2))
+    ) 
+    + on(1, 2, 3, 4, 5, psi=0)
+;
+  
+problem Adual(cc,w) =
+    int2d(Th)(
+		  (cc/dt+(beta1*dx(cc)+beta2*dy(cc)))*w 
+	  )
+	  + intalledges(Th)(
+		  (1-nTonEdge)*(abs(n)/2.)*jump(cc)*w
+	 	  -(1-nTonEdge)*n/2.*jump(cc)*w
+	  )
+	  - int2d(Th)(
+		  ccold*w/dt 
+	  )
+;
+
+problem Aconv(cc,w)=
+	int2d(Th)(cc*w) 
+	- int2d(Th)(convect([u1,u2],-dt,ccold)*w)
+	//+ on(1,2,3,4, cc = 0)
+;
+
+u1 = 0;
+u2 = 0;
+p = 0;
+cc = f(x);
+
+for(int i=1; i<=T/dt; i++){
+  t+=dt;
+  cout << i << endl;
+
+  u1old = u1;
+  u2old = u2;
+
+  NavierStokes;
+  streamlines;
+  
+  //Uh vorticityPlus = dx(u2) + dy(u1);
+  //Uh q = 0.25*(vorticity*vorticity-vorticityPlus*vorticityPlus);
+
+  beta1 = u1;
+  beta2 = u2;
+  ccold = f2(x);
+  Adual;
+  //Aconv;
+
+  //Ph vorticity = dx(cc) - dy(cc);
+
+  //q1=0.4*u1^2+D^2;
+  //q2=0.4*u2^2+D^2;
+
+  savesol("Th." + i + ".sol",Th,cc);
+  savemesh(Th, "Th." + i + ".mesh");
+  
+  //plot(u1,u2);
+  //plot(cc, value=0); 
+  //plot(cc,fill=0,cmm="t="+t + ", min=" + cc[].min + ", max=" + cc[].max);
+}
