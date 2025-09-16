@@ -1,0 +1,42 @@
+// Parameters  
+int nn = 20;
+func f1=5.0/8.0*pi*pi*sin(pi*x)*sin(pi*y/2.0)+2.0*x; 
+func f2=5.0/4.0*pi*pi*cos(pi*x)*cos(pi*y/2.0)+2.0*y; 
+func g1=sin(pi*x)*sin(pi*y/2.0)/2.0; 
+func g2=cos(pi*x)*cos(pi*y/2.0); 
+ // Mesh 
+mesh Th = square(nn, nn); 
+// Fespace 
+fespace Uh(Th, P2);
+Uh u1, u2; 
+Uh v1, v2; 
+fespace Ph(Th, P1); 
+Ph p, q; 
+macro div(u1,u2) ( dx(u1) + dy(u2) ) //
+macro e(u1,u2) (dy(u1) + dx(u2))/2.0 //
+// Problem 
+solve stokes ([u1, u2, p], [v1, v2, q]) 
+	= int2d(Th)(
+		2*dx(u1)*dx(v1)  
+		+ 4*e(u1,u2)*e(v1,v2)
+        + 2*dy(u2)*dy(v2)
+		- p*div(v1,v2)
+		- 1.0e-6*p*q
+	)
+	- int2d(Th)(
+		f1*v1
+		+ f2*v2
+	)
+	+ int2d(Th)(
+		- q*div(u1,u2)
+	)
+	+ on(1, 2, 3, 4, u1=g1, u2=g2); 
+; 
+
+//Plot
+plot(Th, wait=1);
+plot([u1, u2], p, wait=1);
+
+// real meanp = int2d(Th)(p) / int2d(Th)(1.0); 
+// p = p - meanp; 
+// plot([u1,u2],p,wait=1,value=true,coef=0.1);

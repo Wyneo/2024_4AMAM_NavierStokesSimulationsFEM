@@ -1,0 +1,65 @@
+func f1 = 2*sin(pi*(x + y)) + (1/pi)*cos(pi*(x + y));
+func f2 = -2*sin(pi*(x + y)) + (1/pi)*cos(pi*(x + y));
+//func g1 = (1/(pi*pi))*sin(pi*(x + y));
+//func g2 = -(1/(pi*pi))*sin(pi*(x + y));
+func solu1 = (1/(pi*pi))*sin(pi*(x+y));
+func solu2 = -(1/(pi*pi))*sin(pi*(x+y));
+func solp = (1/(pi*pi))*sin(pi*(x+y));
+macro div(u1,u2) (dx(u1)+dy(u2)) //
+int n,i ;
+int nbite = 10;
+real[int] hvals(nbite), erru1vals(nbite), erru2vals(nbite), errpvals(nbite);
+for (i=0; i<nbite; i++){
+	n = (i+1)*10;
+	// Mesh 
+	mesh Th = square(n, n); 
+	// Fespace 
+	fespace Uh(Th, P1b);
+	Uh u1, u2; 
+	Uh v1, v2; 
+	fespace Ph(Th, P1); 
+	Ph p, q; 
+	// Problem 
+	solve stokes ([u1, u2, p], [v1, v2, q]) 
+		= int2d(Th)(
+			dx(u1)*dx(v1)  
+			+ dy(u1)*dy(v1)
+			+ dx(u2)*dx(v2)
+			+ dy(u2)*dy(v2)
+			- p*div(v1,v2)
+			- 1e-10*p*q
+		)
+		- int2d(Th)(
+			f1*v1
+			+ f2*v2
+		)
+		- int2d(Th)(
+			q*div(u1,u2)
+		)
+		+ on(1, u1 = (1/(pi*pi))*sin(pi*(x)), u2 = -(1/(pi*pi))*sin(pi*(x)))
+		+ on(2, u1 = (1/(pi*pi))*sin(pi*(1+y)), u2 = -(1/(pi*pi))*sin(pi*(1+y)))
+		+ on(3, u1 = (1/(pi*pi))*sin(pi*(x+1)), u2 = -(1/(pi*pi))*sin(pi*(x+1)))
+		+ on(4, u1 = (1/(pi*pi))*sin(pi*(y)), u2 = -(1/(pi*pi))*sin(pi*(y)))
+		// + on(1,2,4, u1 = 0, u2 = 0)
+		// + on(3, u1 = 1, u2 = 0)
+	; 
+
+	real erru1 = sqrt(int2d(Th)((solu1 - u1)*(solu1 - u1)));
+	real erru2 = sqrt(int2d(Th)((solu2 - u2)*(solu2 - u2)));
+	real errp = sqrt(int2d(Th)((solp - p)*(solp - p)));
+	real h = 1.0/n;
+
+	//cout << "Mesh size h: " << h << ", Error u1: " << erru1 << ", Error u2: " << erru2 << ", Error p: " << errp << endl;
+
+	hvals[i] = h;
+	erru1vals[i] = erru1;
+	erru2vals[i] = erru2;
+	errpvals[i] = errp;
+
+	plot([u1, u2], wait = 1);
+}
+
+cout<<"valeurs de h : "<<hvals<<endl;
+cout<<"valeurs de erreur de u1 : "<<erru1vals<<endl;
+cout<<"valeurs de erreur de u2 : "<<erru2vals<<endl;
+cout<<"valeurs de erreur de p : "<<errpvals<<endl;
