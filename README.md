@@ -13,4 +13,4 @@ Une série de simulations a été réalisée, la plus élémentaire étant le ca
 Les résultats ainsi que plus de détails sont disponibles dans le rapport de stage.  
 Visualisation de certains résultats avec le package medit, via la commande ffmedit.
 
-Remerciements à Mm. TA Thi Thanh Mai pour ce sujet et son aide.
+Remerciements à Mm. TA Thi Thanh Mai pour ce sujet et son aide tout au long de ce stage de 5 mois.
